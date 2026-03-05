@@ -1,16 +1,19 @@
 # ElizaOS Agent with Axon Plugin
 
-## What it does (planned)
+> **Coming soon** — The `@axonfi/plugin-elizaos` package is [published on npm](https://www.npmjs.com/package/@axonfi/plugin-elizaos). This example character is in progress.
 
-An AI character on ElizaOS that can tip people and pay for things. You'd say "tip @alice 10 USDC for the design work" in a chat, and the character sends the payment from an Axon vault.
+## What it will do
 
-Uses the published `@axonfi/plugin-elizaos` npm package.
+An AI character on ElizaOS that can tip people and pay for things. Say "tip @alice 10 USDC for the design work" in chat, and the character sends the payment from an Axon vault.
 
-**Status:** Coming soon. The plugin is published but the example character isn't wired up yet.
-
-## What it will demonstrate
-
-- ElizaOS character with a payment personality ("I'm a helpful agent that can send money")
+- ElizaOS character with a payment personality
 - Natural language payment commands in chat
 - Spending limits enforced by the vault — the character can't drain the treasury
 - Activity shows up in the Axon dashboard in real time
+
+## Links
+
+- [Plugin on npm](https://www.npmjs.com/package/@axonfi/plugin-elizaos)
+- [Website](https://axonfi.xyz)
+- [Dashboard](https://app.axonfi.xyz)
+- [Twitter/X — @axonfixyz](https://x.com/axonfixyz)

@@ -8,7 +8,7 @@
  */
 
 import "dotenv/config";
-import { AxonClient, USDC } from "@axonfi/sdk";
+import { AxonClient, Chain, USDC } from "@axonfi/sdk";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { tool } from "@langchain/core/tools";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
@@ -19,7 +19,7 @@ import * as readline from "readline";
 
 const client = new AxonClient({
   vaultAddress: process.env.AXON_VAULT_ADDRESS! as `0x${string}`,
-  chainId: Number(process.env.AXON_CHAIN_ID || "84532"),
+  chainId: Number(process.env.AXON_CHAIN_ID || Chain.BaseSepolia),
   botPrivateKey: process.env.AXON_BOT_PRIVATE_KEY! as `0x${string}`,
 });
 
@@ -51,7 +51,7 @@ const axonPay = tool(
 
 const axonBalance = tool(
   async ({ token }) => {
-    const chainId = Number(process.env.AXON_CHAIN_ID || "84532");
+    const chainId = Number(process.env.AXON_CHAIN_ID || Chain.BaseSepolia);
     const usdcAddr = USDC[chainId];
     if (!usdcAddr) return "USDC not available on this chain";
     const balance = await client.getBalance(usdcAddr);
