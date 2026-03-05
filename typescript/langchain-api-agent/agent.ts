@@ -8,19 +8,41 @@
  */
 
 import "dotenv/config";
-import { AxonClient, Chain, USDC } from "@axonfi/sdk";
+import * as fs from "fs";
+import { AxonClient, Chain, USDC, decryptKeystore } from "@axonfi/sdk";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { tool } from "@langchain/core/tools";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import * as readline from "readline";
+import type { Hex } from "viem";
+
+// ── Load bot key (raw hex or encrypted keystore) ───────────────────────────
+
+async function loadBotKey(): Promise<Hex> {
+  if (process.env.AXON_BOT_PRIVATE_KEY) {
+    return process.env.AXON_BOT_PRIVATE_KEY as Hex;
+  }
+
+  const keystorePath = process.env.AXON_BOT_KEYSTORE_PATH;
+  const passphrase = process.env.AXON_BOT_PASSPHRASE;
+  if (keystorePath && passphrase) {
+    const keystore = JSON.parse(fs.readFileSync(keystorePath, "utf8"));
+    return await decryptKeystore(keystore, passphrase);
+  }
+
+  throw new Error(
+    "Set AXON_BOT_PRIVATE_KEY or AXON_BOT_KEYSTORE_PATH + AXON_BOT_PASSPHRASE"
+  );
+}
 
 // ── Axon client ─────────────────────────────────────────────────────────────
 
+const botKey = await loadBotKey();
 const client = new AxonClient({
   vaultAddress: process.env.AXON_VAULT_ADDRESS! as `0x${string}`,
   chainId: Number(process.env.AXON_CHAIN_ID || Chain.BaseSepolia),
-  botPrivateKey: process.env.AXON_BOT_PRIVATE_KEY! as `0x${string}`,
+  botPrivateKey: botKey,
 });
 
 // ── Tools ───────────────────────────────────────────────────────────────────

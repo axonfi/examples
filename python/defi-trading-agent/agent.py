@@ -9,7 +9,9 @@ Usage:
 """
 
 import asyncio
+import json
 import os
+import sys
 
 import httpx
 from dotenv import load_dotenv
@@ -19,9 +21,9 @@ from axonfi import AxonClient, Chain
 load_dotenv()
 
 # Configuration
-BUY_BELOW_USD = 2000.0  # Buy WETH when ETH drops below this
-SWAP_AMOUNT_USDC = 10.0  # Swap 10 USDC worth
-POLL_INTERVAL = 30  # Check every 30 seconds
+BUY_BELOW_USD = float(os.environ.get("BUY_BELOW_USD", "2000"))
+SWAP_AMOUNT_USDC = float(os.environ.get("SWAP_AMOUNT_USDC", "10"))
+POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "30"))
 
 
 async def get_eth_price() -> float:
@@ -35,11 +37,30 @@ async def get_eth_price() -> float:
         return resp.json()["ethereum"]["usd"]
 
 
+def _load_bot_key() -> str:
+    """Load bot private key from env (raw hex) or keystore file + passphrase."""
+    raw_key = os.environ.get("AXON_BOT_PRIVATE_KEY")
+    if raw_key:
+        return raw_key
+
+    keystore_path = os.environ.get("AXON_BOT_KEYSTORE_PATH")
+    passphrase = os.environ.get("AXON_BOT_PASSPHRASE")
+    if keystore_path and passphrase:
+        from eth_account import Account
+
+        with open(keystore_path) as f:
+            keystore = json.load(f)
+        return "0x" + Account.decrypt(keystore, passphrase).hex()
+
+    print("Error: set AXON_BOT_PRIVATE_KEY or AXON_BOT_KEYSTORE_PATH + AXON_BOT_PASSPHRASE", file=sys.stderr)
+    sys.exit(1)
+
+
 async def main():
     client = AxonClient(
         vault_address=os.environ["AXON_VAULT_ADDRESS"],
         chain_id=int(os.environ.get("AXON_CHAIN_ID", str(Chain.BaseSepolia))),
-        bot_private_key=os.environ["AXON_BOT_PRIVATE_KEY"],
+        bot_private_key=_load_bot_key(),
     )
 
     print(f"DeFi Trading Agent")

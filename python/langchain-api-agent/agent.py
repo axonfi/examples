@@ -10,7 +10,9 @@ Usage:
     python agent.py
 """
 
+import json
 import os
+import sys
 
 from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
@@ -21,12 +23,32 @@ from axonfi import AxonClientSync, Chain
 
 load_dotenv()
 
+
+def _load_bot_key() -> str:
+    """Load bot private key from env (raw hex) or keystore file + passphrase."""
+    raw_key = os.environ.get("AXON_BOT_PRIVATE_KEY")
+    if raw_key:
+        return raw_key
+
+    keystore_path = os.environ.get("AXON_BOT_KEYSTORE_PATH")
+    passphrase = os.environ.get("AXON_BOT_PASSPHRASE")
+    if keystore_path and passphrase:
+        from eth_account import Account
+
+        with open(keystore_path) as f:
+            keystore = json.load(f)
+        return "0x" + Account.decrypt(keystore, passphrase).hex()
+
+    print("Error: set AXON_BOT_PRIVATE_KEY or AXON_BOT_KEYSTORE_PATH + AXON_BOT_PASSPHRASE", file=sys.stderr)
+    sys.exit(1)
+
+
 # ── Axon client (sync wrapper for LangChain) ────────────────────────────────
 
 client = AxonClientSync(
     vault_address=os.environ["AXON_VAULT_ADDRESS"],
     chain_id=int(os.environ.get("AXON_CHAIN_ID", str(Chain.BaseSepolia))),
-    bot_private_key=os.environ["AXON_BOT_PRIVATE_KEY"],
+    bot_private_key=_load_bot_key(),
 )
 
 
