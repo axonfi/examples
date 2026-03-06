@@ -1,0 +1,4 @@
+axonfi>=0.2.0
+ostium-python-sdk>=2.0.0
+python-dotenv>=1.0.0
+web3>=6.0.0
