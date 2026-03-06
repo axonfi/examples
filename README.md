@@ -15,6 +15,7 @@ Think of it like a corporate credit card for AI agents. You (the owner) set up a
 | [langchain-api-agent](python/langchain-api-agent/) | **A chatbot that can send money.** You talk to it in natural language ("pay 5 USDC to 0xABC for the weather data") and it sends the payment from your vault. Built with LangChain + Claude. |
 | [cli-payments](python/cli-payments/) | **Venmo from the command line.** `python cli.py pay 0xABC USDC 5` sends 5 USDC. Also checks balances and payment status. Simplest possible Axon integration. |
 | [defi-trading-agent](python/defi-trading-agent/) | **Auto-buys ETH when the price dips.** Watches ETH/USD on CoinGecko every 30 seconds. When ETH drops below $2,000, it swaps USDC to WETH inside the vault via Uniswap on Base. Like a DCA bot, but the funds never leave the vault. |
+| [ostium-perps-trader](python/ostium-perps-trader/) | **Opens perpetual futures from a vault.** The vault itself is the trader on [Ostium](https://ostium.io) — it approves USDC, calls `openTrade`, and the position belongs to the vault. Gains stay under owner control, not the bot. |
 
 ### TypeScript
 
