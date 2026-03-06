@@ -7,7 +7,7 @@
     "bot": "tsx bot-client.ts"
   },
   "dependencies": {
-    "@axonfi/sdk": "^0.1.0",
+    "@axonfi/sdk": "latest",
     "express": "^4.21.0",
     "dotenv": "^16.0.0"
   },

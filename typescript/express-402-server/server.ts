@@ -85,7 +85,10 @@ function x402Paywall(description: string) {
     }
 
     // No payment — return 402 with payment requirements
-    const resourceUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+    // PUBLIC_URL overrides the auto-detected URL (needed for local testing
+    // since relayer rejects "http://localhost" as an invalid resource URL)
+    const baseUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+    const resourceUrl = `${baseUrl}${req.originalUrl}`;
     const headerValue = buildPaymentRequiredHeader(resourceUrl, description);
 
     console.log(`  [x402] No payment — returning 402 for ${req.path}`);
