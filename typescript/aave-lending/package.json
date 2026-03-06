@@ -1,0 +1,13 @@
+{
+  "name": "axon-aave-lending",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@axonfi/sdk": "latest",
+    "dotenv": "^16.4.0",
+    "viem": "^2.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0"
+  }
+}

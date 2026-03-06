@@ -1,0 +1,15 @@
+{
+  "name": "axon-vault-setup",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "tsx setup.ts"
+  },
+  "dependencies": {
+    "@axonfi/sdk": "^0.5.3",
+    "viem": "^2.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0"
+  }
+}

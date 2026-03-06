@@ -25,6 +25,7 @@ npx tsx agent.ts
 ## How it works
 
 The agent has 2 tools:
+
 - **axon_pay** — send USDC to any address with a memo
 - **axon_balance** — check how much USDC is in the vault
 

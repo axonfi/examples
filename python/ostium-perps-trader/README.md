@@ -25,12 +25,12 @@ The vault owner controls how much the bot can spend — per-transaction caps, da
 
 ## Available Markets
 
-| ID | Market | ID | Market | ID | Market |
-|----|--------|----|--------|----|--------|
-| 0 | BTC/USD | 5 | XAU/USD (gold) | 10 | S&P 500 |
-| 1 | ETH/USD | 7 | CL/USD (oil) | 18 | NVDA |
-| 2 | EUR/USD | 8 | XAG/USD (silver) | 22 | TSLA |
-| 9 | SOL/USD | 3 | GBP/USD | 12 | NASDAQ |
+| ID  | Market  | ID  | Market           | ID  | Market  |
+| --- | ------- | --- | ---------------- | --- | ------- |
+| 0   | BTC/USD | 5   | XAU/USD (gold)   | 10  | S&P 500 |
+| 1   | ETH/USD | 7   | CL/USD (oil)     | 18  | NVDA    |
+| 2   | EUR/USD | 8   | XAG/USD (silver) | 22  | TSLA    |
+| 9   | SOL/USD | 3   | GBP/USD          | 12  | NASDAQ  |
 
 Full list in [Ostium docs](https://ostium.org).
 
@@ -59,6 +59,7 @@ cp .env.example .env
 ```
 
 Edit `.env`:
+
 - `AXON_VAULT_ADDRESS` — your vault on Arbitrum Sepolia
 - `AXON_BOT_PRIVATE_KEY` — bot key registered on the vault
 

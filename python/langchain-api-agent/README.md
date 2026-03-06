@@ -28,6 +28,7 @@ Agent:  "Payment sent! TX: 0x..."
 ```
 
 The agent has 3 tools:
+
 - **axon_pay** — send USDC to any address with a memo
 - **axon_balance** — check how much USDC is in the vault
 - **axon_poll** — check if a pending payment was approved or rejected
