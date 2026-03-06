@@ -1,74 +1,55 @@
-"""Ostium perpetuals trader — trade BTC, ETH, forex, commodities, and stocks with Axon treasury.
+"""Ostium perpetuals trader — vault-as-trader pattern.
 
-Uses the Axon vault as treasury and the Ostium SDK for leveraged perpetual trading
-on Arbitrum Sepolia. The bot draws USDC from the vault when needed and trades via Ostium.
+The Axon vault IS the trader on Ostium. It approves USDC to Ostium's
+TradingStorage contract, then calls openTrade with trader=vault.
+Positions and gains belong to the vault, under owner control.
+
+Setup (one-time):
+  1. Deploy vault on Arbitrum Sepolia
+  2. Register bot, add Ostium Trading + Ostium USDC as approved protocols
+  3. Set bot maxPerTxAmount=0 (Ostium USDC has no Uniswap pool for oracle)
+  4. Fund vault with Ostium testnet USDC
 
 Usage:
     pip install -r requirements.txt
     cp .env.example .env
-    python trader.py
+    python trader.py open
+    python trader.py price
 """
 
 import asyncio
-import json
 import os
 import sys
 
+from decimal import Decimal
 from dotenv import load_dotenv
+from web3 import Web3
+
+from axonfi import AxonClient, Chain
 
 load_dotenv()
 
-
-# ── Axon client (treasury) ──────────────────────────────────────────────────
-
-def _load_bot_key() -> str:
-    """Load bot private key from env (raw hex) or keystore file + passphrase."""
-    raw_key = os.environ.get("AXON_BOT_PRIVATE_KEY")
-    if raw_key:
-        return raw_key
-
-    keystore_path = os.environ.get("AXON_BOT_KEYSTORE_PATH")
-    passphrase = os.environ.get("AXON_BOT_PASSPHRASE")
-    if keystore_path and passphrase:
-        from eth_account import Account
-
-        with open(keystore_path) as f:
-            keystore = json.load(f)
-        return "0x" + Account.decrypt(keystore, passphrase).hex()
-
-    print("Error: set AXON_BOT_PRIVATE_KEY or AXON_BOT_KEYSTORE_PATH + AXON_BOT_PASSPHRASE", file=sys.stderr)
-    sys.exit(1)
-
-
-from axonfi import AxonClient, Chain
+# ── Axon client ──────────────────────────────────────────────────────────────
 
 axon = AxonClient(
     vault_address=os.environ["AXON_VAULT_ADDRESS"],
     chain_id=int(os.environ.get("AXON_CHAIN_ID", str(Chain.ArbitrumSepolia))),
-    bot_private_key=_load_bot_key(),
+    bot_private_key=os.environ["AXON_BOT_PRIVATE_KEY"],
 )
 
+# ── Ostium addresses (Arb Sepolia) ──────────────────────────────────────────
 
-# ── Ostium SDK (trading) ────────────────────────────────────────────────────
+OSTIUM_TRADING = "0x2A9B9c988393f46a2537B0ff11E98c2C15a95afe"
+OSTIUM_TRADING_STORAGE = "0x0b9F5243B29938668c9Cfbd7557A389EC7Ef88b8"
+OSTIUM_USDC = "0xe73B11Fb1e3eeEe8AF2a23079A4410Fe1B370548"
 
-from ostium_python_sdk import OstiumSDK, NetworkConfig
+# ── Trade config ─────────────────────────────────────────────────────────────
 
-OSTIUM_USDC = "0xe73B11Fb1e3eeEe8AF2a23079A4410Fe1B370548"  # Ostium testnet USDC
+PAIR_ID = int(os.environ.get("PAIR_ID", "0"))
+COLLATERAL_USDC = float(os.environ.get("COLLATERAL_USDC", "50"))
+LEVERAGE = float(os.environ.get("LEVERAGE", "5"))
+DIRECTION = os.environ.get("DIRECTION", "long").lower() == "long"
 
-ostium_config = NetworkConfig.testnet()
-ostium = OstiumSDK(
-    ostium_config,
-    private_key=os.environ["OSTIUM_TRADER_KEY"],
-    rpc_url=os.environ["RPC_URL"],
-    verbose=False,
-)
-
-TRADER_ADDRESS = ostium.ostium.get_public_address()
-
-# ── Configuration ────────────────────────────────────────────────────────────
-
-# Pairs: 0=BTC, 1=ETH, 2=EUR/USD, 5=XAU/USD, 7=CL/USD (oil), 9=SOL, 10=SPX
-PAIR_ID = int(os.environ.get("PAIR_ID", "0"))  # BTC by default
 PAIR_NAMES = {
     0: "BTC/USD", 1: "ETH/USD", 2: "EUR/USD", 3: "GBP/USD", 4: "USD/JPY",
     5: "XAU/USD", 6: "HG/USD", 7: "CL/USD", 8: "XAG/USD", 9: "SOL/USD",
@@ -77,156 +58,168 @@ PAIR_NAMES = {
 PAIR_BASES = {
     0: "BTC", 1: "ETH", 2: "EUR", 3: "GBP", 4: "USD",
     5: "XAU", 6: "HG", 7: "CL", 8: "XAG", 9: "SOL",
-    10: "SPX", 11: "DJI", 12: "NDX", 18: "NVDA", 22: "TSLA",
-}
-PAIR_QUOTES = {
-    0: "USD", 1: "USD", 2: "USD", 3: "USD", 4: "JPY",
-    5: "USD", 6: "USD", 7: "USD", 8: "USD", 9: "USD",
-    10: "USD", 11: "USD", 12: "USD", 18: "USD", 22: "USD",
 }
 
-COLLATERAL_USDC = float(os.environ.get("COLLATERAL_USDC", "50"))
-LEVERAGE = float(os.environ.get("LEVERAGE", "5"))
-DIRECTION = os.environ.get("DIRECTION", "long").lower() == "long"
-FUNDING_BUFFER_USDC = float(os.environ.get("FUNDING_BUFFER_USDC", "10"))
+
+# ── Encoding helpers ─────────────────────────────────────────────────────────
+
+def to_base_units(amount, decimals=6):
+    return int(float(amount) * 10**decimals)
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
-
-async def get_trader_usdc_balance() -> float:
-    """Check USDC balance of the Ostium trading wallet."""
-    from web3 import Web3
-
-    w3 = Web3(Web3.HTTPProvider(os.environ["RPC_URL"]))
-    usdc_abi = [{"inputs": [{"name": "account", "type": "address"}], "name": "balanceOf", "outputs": [{"name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"}]
-    usdc = w3.eth.contract(address=OSTIUM_USDC, abi=usdc_abi)
-    raw = usdc.functions.balanceOf(TRADER_ADDRESS).call()
-    return raw / 1e6
+def convert_to_scaled_integer(value, precision=5, scale=18):
+    precise_value = round(Decimal(str(value)) * (10 ** precision))
+    return int(precise_value * (10 ** (scale - precision)))
 
 
-async def fund_trader_from_vault(amount_usdc: float):
-    """Transfer USDC from Axon vault to the Ostium trading wallet."""
-    print(f"  Funding trader: {amount_usdc} USDC from vault → {TRADER_ADDRESS[:10]}...")
-    result = await axon.pay(
-        to=TRADER_ADDRESS,
-        token=OSTIUM_USDC,
-        amount=amount_usdc,
-        memo=f"Fund Ostium trader for {PAIR_NAMES.get(PAIR_ID, f'pair {PAIR_ID}')} trade",
+def encode_approve(spender: str, amount: int) -> str:
+    w3 = Web3()
+    abi = [{"inputs": [{"name": "spender", "type": "address"}, {"name": "amount", "type": "uint256"}],
+            "name": "approve", "outputs": [{"type": "bool"}], "stateMutability": "nonpayable", "type": "function"}]
+    contract = w3.eth.contract(abi=abi)
+    return contract.encode_abi("approve", [Web3.to_checksum_address(spender), amount])
+
+
+def encode_open_trade(vault_address: str, price: float) -> str:
+    abi = [{
+        "inputs": [
+            {"components": [
+                {"name": "collateral", "type": "uint256"},
+                {"name": "openPrice", "type": "uint192"},
+                {"name": "tp", "type": "uint192"},
+                {"name": "sl", "type": "uint192"},
+                {"name": "trader", "type": "address"},
+                {"name": "leverage", "type": "uint32"},
+                {"name": "pairIndex", "type": "uint16"},
+                {"name": "index", "type": "uint8"},
+                {"name": "buy", "type": "bool"},
+            ], "name": "t", "type": "tuple"},
+            {"components": [
+                {"name": "builder", "type": "address"},
+                {"name": "builderFee", "type": "uint32"},
+            ], "name": "bf", "type": "tuple"},
+            {"name": "orderType", "type": "uint8"},
+            {"name": "slippageP", "type": "uint256"},
+        ],
+        "name": "openTrade", "outputs": [], "stateMutability": "nonpayable", "type": "function",
+    }]
+
+    w3 = Web3()
+    contract = w3.eth.contract(abi=abi)
+
+    trade = (
+        convert_to_scaled_integer(COLLATERAL_USDC, precision=5, scale=6),
+        convert_to_scaled_integer(price),
+        0, 0,  # no TP/SL
+        Web3.to_checksum_address(vault_address),
+        to_base_units(LEVERAGE, decimals=2),
+        PAIR_ID, 0, DIRECTION,
     )
-    if result.status == "approved":
-        print(f"  Funded! TX: {result.tx_hash}")
-        return True
-    else:
-        print(f"  Funding failed: {result.reason}")
-        return False
+    builder_fee = ("0x0000000000000000000000000000000000000000", 0)
+    slippage = int(2 * 100)  # 2%
+
+    return contract.encode_abi("openTrade", [trade, builder_fee, 0, slippage])
 
 
-async def ensure_trader_funded(needed_usdc: float) -> bool:
-    """Top up the trading wallet from the vault if balance is insufficient."""
-    balance = await get_trader_usdc_balance()
-    print(f"  Trader USDC balance: {balance:.2f}")
+# ── Ostium price ─────────────────────────────────────────────────────────────
 
-    if balance >= needed_usdc:
-        return True
-
-    shortfall = needed_usdc - balance + FUNDING_BUFFER_USDC
-    print(f"  Need {needed_usdc:.2f} USDC, have {balance:.2f} — funding {shortfall:.2f} from vault")
-    return await fund_trader_from_vault(shortfall)
+async def get_price() -> float:
+    from ostium_python_sdk import OstiumSDK, NetworkConfig
+    config = NetworkConfig.testnet()
+    sdk = OstiumSDK(config, None)
+    base = PAIR_BASES.get(PAIR_ID, "BTC")
+    price, _, _ = await sdk.price.get_price(base, "USD")
+    return price
 
 
-# ── Trading ──────────────────────────────────────────────────────────────────
+# ── Commands ─────────────────────────────────────────────────────────────────
 
-async def open_position():
-    """Open a leveraged position on Ostium, funded from the Axon vault."""
+async def wait_for_result(request_id: str, label: str = "") -> "PaymentResult":
+    """Poll until terminal state (approved/rejected), max 60s."""
+    for i in range(30):
+        result = await axon.poll_execute(request_id)
+        if result.status in ("approved", "rejected"):
+            return result
+        print(f"  {label}status: {result.status}..." if label else f"  status: {result.status}...")
+        await asyncio.sleep(2)
+    return result
+
+
+async def cmd_open():
     pair_name = PAIR_NAMES.get(PAIR_ID, f"Pair {PAIR_ID}")
     direction = "Long" if DIRECTION else "Short"
-    base = PAIR_BASES.get(PAIR_ID, "BTC")
-    quote = PAIR_QUOTES.get(PAIR_ID, "USD")
 
     print(f"\nOpening {direction} {pair_name}")
     print(f"  Collateral: {COLLATERAL_USDC} USDC | Leverage: {LEVERAGE}x")
     print(f"  Notional: ~${COLLATERAL_USDC * LEVERAGE:.0f}")
 
-    # 1. Ensure the trading wallet has enough USDC
-    if not await ensure_trader_funded(COLLATERAL_USDC):
-        print("  Aborting — could not fund trader")
-        return None
-
-    # 2. Get latest price from Ostium
-    price, _, _ = await ostium.price.get_price(base, quote)
-    print(f"  {pair_name} price: ${price:,.2f}")
-
-    # 3. Open the trade via Ostium SDK
-    trade_params = {
-        "collateral": COLLATERAL_USDC,
-        "leverage": LEVERAGE,
-        "asset_type": PAIR_ID,
-        "direction": DIRECTION,
-        "order_type": "MARKET",
-    }
-
-    try:
-        result = ostium.ostium.perform_trade(trade_params, at_price=price)
-        tx_hash = result["receipt"]["transactionHash"].hex()
-        order_id = result.get("order_id")
-        print(f"  Trade opened! TX: {tx_hash}")
-        if order_id is not None:
-            print(f"  Order ID: {order_id}")
-        return result
-    except Exception as e:
-        print(f"  Trade failed: {e}")
-        return None
-
-
-async def show_positions():
-    """Display open positions on Ostium."""
-    trades = await ostium.subgraph.get_open_trades(TRADER_ADDRESS)
-    if not trades:
-        print("\nNo open positions")
+    # Step 1: Ensure persistent USDC approval to TradingStorage
+    print("\n  Approving USDC to TradingStorage...")
+    approve_calldata = encode_approve(OSTIUM_TRADING_STORAGE, 1_000_000 * 10**6)
+    result = await axon.execute(
+        protocol=OSTIUM_USDC,
+        call_data=approve_calldata,
+        token=OSTIUM_USDC,
+        amount=0,
+        protocol_name="Ostium USDC Approve",
+    )
+    if result.request_id and not result.tx_hash:
+        result = await wait_for_result(result.request_id, "approve ")
+    if result.reason:
+        print(f"  Approval failed: {result.reason}")
         return
+    print(f"  Approved! TX: {result.tx_hash}")
 
-    print(f"\nOpen positions ({len(trades)}):")
-    for trade in trades:
-        from ostium_python_sdk.utils import get_trade_details
+    # Step 2: Get price
+    price = await get_price()
+    print(f"\n  {pair_name} price: ${price:,.2f}")
 
-        open_price, notional, time, leverage, collateral, pair_idx, index, is_long, sl, tp = get_trade_details(trade)
-        pair_name = PAIR_NAMES.get(int(pair_idx), f"Pair {pair_idx}")
-        direction = "Long" if is_long else "Short"
-        print(f"  [{pair_idx}:{index}] {direction} {pair_name} | {collateral} USDC @ {leverage}x | Entry: ${open_price:,.2f}")
-        if float(tp) > 0:
-            print(f"         TP: ${float(tp):,.2f} | SL: ${float(sl):,.2f}")
+    # Step 3: Open trade (vault is the trader)
+    collateral_raw = int(COLLATERAL_USDC * 1_000_000)
+    calldata = encode_open_trade(axon.vault_address, price)
+    print(f"  Opening trade...")
+    result = await axon.execute(
+        protocol=OSTIUM_TRADING,
+        call_data=calldata,
+        token=OSTIUM_USDC,
+        amount=collateral_raw,
+        protocol_name="Ostium",
+    )
+    if result.request_id and not result.tx_hash:
+        result = await wait_for_result(result.request_id, "trade ")
+
+    if result.tx_hash:
+        print(f"  Trade opened! TX: {result.tx_hash}")
+    elif result.reason:
+        print(f"  Trade failed: {result.reason}")
 
 
-async def close_position(pair_id: int, trade_index: int):
-    """Close an open position on Ostium."""
-    print(f"\nClosing position {pair_id}:{trade_index}...")
-    try:
-        receipt = ostium.ostium.close_trade(pair_id, trade_index)
-        tx_hash = receipt["transactionHash"].hex()
-        print(f"  Closed! TX: {tx_hash}")
-    except Exception as e:
-        print(f"  Close failed: {e}")
+async def cmd_price():
+    pair_name = PAIR_NAMES.get(PAIR_ID, f"Pair {PAIR_ID}")
+    price = await get_price()
+    print(f"\n{pair_name}: ${price:,.2f}")
+
+
+async def cmd_balance():
+    bal = await axon.get_balance(OSTIUM_USDC)
+    print(f"\nVault USDC: {bal / 1e6:.2f}")
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
 USAGE = """
-Ostium Perps Trader — powered by Axon vault treasury
+Ostium Perps Trader — vault-as-trader via Axon
 
 Commands:
-  open              Open a position (uses env config)
-  positions         Show open positions
-  close <pair> <i>  Close position by pair ID and trade index
-  price             Show current price for configured pair
-  balance           Show vault + trader USDC balances
-  fund <amount>     Fund trader wallet from vault
-  help              Show this message
+  open      Open a position (uses env config)
+  price     Show current price for configured pair
+  balance   Show vault USDC balance
+  help      Show this message
 
 Examples:
   python trader.py open
-  python trader.py positions
-  python trader.py close 0 0
-  python trader.py fund 100
+  python trader.py price
+  PAIR_ID=1 LEVERAGE=10 DIRECTION=short python trader.py open
 """
 
 
@@ -236,46 +229,19 @@ async def main():
         return
 
     cmd = sys.argv[1].lower()
-
     pair_name = PAIR_NAMES.get(PAIR_ID, f"Pair {PAIR_ID}")
-    print(f"Axon vault:  {axon.vault_address}")
-    print(f"Axon bot:    {axon.bot_address}")
-    print(f"Ostium trader: {TRADER_ADDRESS}")
-    print(f"Pair: {pair_name} | Chain: Arbitrum Sepolia")
+    print(f"Vault: {axon.vault_address}")
+    print(f"Bot:   {axon.bot_address}")
+    print(f"Pair:  {pair_name} | Chain: Arbitrum Sepolia")
 
     if cmd == "open":
-        await open_position()
-
-    elif cmd == "positions":
-        await show_positions()
-
-    elif cmd == "close":
-        if len(sys.argv) < 4:
-            print("Usage: python trader.py close <pair_id> <trade_index>")
-            return
-        await close_position(int(sys.argv[2]), int(sys.argv[3]))
-
+        await cmd_open()
     elif cmd == "price":
-        base = PAIR_BASES.get(PAIR_ID, "BTC")
-        quote = PAIR_QUOTES.get(PAIR_ID, "USD")
-        price, _, _ = await ostium.price.get_price(base, quote)
-        print(f"\n{pair_name}: ${price:,.2f}")
-
+        await cmd_price()
     elif cmd == "balance":
-        vault_bal = await axon.get_balance(OSTIUM_USDC)
-        trader_bal = await get_trader_usdc_balance()
-        print(f"\n  Vault USDC:  {vault_bal / 1e6:.2f}")
-        print(f"  Trader USDC: {trader_bal:.2f}")
-
-    elif cmd == "fund":
-        if len(sys.argv) < 3:
-            print("Usage: python trader.py fund <amount_usdc>")
-            return
-        await fund_trader_from_vault(float(sys.argv[2]))
-
+        await cmd_balance()
     elif cmd == "help":
         print(USAGE)
-
     else:
         print(f"Unknown command: {cmd}")
         print(USAGE)
