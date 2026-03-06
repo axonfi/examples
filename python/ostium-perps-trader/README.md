@@ -68,6 +68,15 @@ Edit `.env`:
 # Open a 5x long BTC position with $50 collateral
 python trader.py open
 
+# Close a position (defaults: pair 0, trade index 0, 100%)
+python trader.py close
+
+# Close 50% of a position
+CLOSE_PCT=50 python trader.py close
+
+# Close a specific trade index
+TRADE_INDEX=1 python trader.py close
+
 # Check current price for configured pair
 python trader.py price
 
@@ -94,8 +103,8 @@ PAIR_ID=5 COLLATERAL_USDC=100 python trader.py open
 ## Example Output
 
 ```
-Vault: 0x723ff94280af1a5a2f924d00ee764724ee2e3182
-Bot:   0xD3b0c0A9910b32F203741D4c0483e4Eb5D2B3E0c
+Vault: 0xYourVault...
+Bot:   0xYourBot...
 Pair:  BTC/USD | Chain: Arbitrum Sepolia
 
 Opening Long BTC/USD
@@ -103,13 +112,23 @@ Opening Long BTC/USD
   Notional: ~$250
 
   Approving USDC to TradingStorage...
-  Approved! TX: 0xc88c160b...
+  Approved! TX: 0xabc123...
 
   BTC/USD price: $70,013.58
 
   Opening trade...
-  Trade opened! TX: 0xdafbd7dd...
+  Trade opened! TX: 0xdef456...
 ```
+
+## Monitoring Positions
+
+Track your vault's open positions, PNL, and trade history in real time on the Ostium portfolio page:
+
+```
+https://app.ostium.com/portfolio/preview?address=<YOUR_VAULT_ADDRESS>
+```
+
+Make sure to select the correct network (testnet or mainnet) in the Ostium UI to match your vault's chain.
 
 ## Architecture: Vault-as-Trader
 

@@ -80,6 +80,24 @@ def encode_approve(spender: str, amount: int) -> str:
     return contract.encode_abi("approve", [Web3.to_checksum_address(spender), amount])
 
 
+def encode_close_trade(pair_id: int, trade_index: int, close_pct: int, price: float) -> str:
+    abi = [{
+        "inputs": [
+            {"name": "pairIndex", "type": "uint16"},
+            {"name": "index", "type": "uint8"},
+            {"name": "closePercentage", "type": "uint16"},
+            {"name": "marketPrice", "type": "uint192"},
+            {"name": "slippageP", "type": "uint32"},
+        ],
+        "name": "closeTradeMarket", "outputs": [], "stateMutability": "nonpayable", "type": "function",
+    }]
+    w3 = Web3()
+    contract = w3.eth.contract(abi=abi)
+    market_price = convert_to_scaled_integer(price)
+    slippage = int(2 * 100)  # 2%
+    return contract.encode_abi("closeTradeMarket", [pair_id, trade_index, close_pct * 100, market_price, slippage])
+
+
 def encode_open_trade(vault_address: str, price: float) -> str:
     abi = [{
         "inputs": [
@@ -126,7 +144,8 @@ def encode_open_trade(vault_address: str, price: float) -> str:
 async def get_price() -> float:
     from ostium_python_sdk import OstiumSDK, NetworkConfig
     config = NetworkConfig.testnet()
-    sdk = OstiumSDK(config, None)
+    rpc = os.environ.get("RPC_URL", "https://arb-sepolia.g.alchemy.com/v2/demo")
+    sdk = OstiumSDK(config, None, rpc)
     base = PAIR_BASES.get(PAIR_ID, "BTC")
     price, _, _ = await sdk.price.get_price(base, "USD")
     return price
@@ -194,6 +213,36 @@ async def cmd_open():
         print(f"  Trade failed: {result.reason}")
 
 
+async def cmd_close():
+    pair_id = PAIR_ID
+    trade_index = int(os.environ.get("TRADE_INDEX", "0"))
+    close_pct = int(os.environ.get("CLOSE_PCT", "100"))  # 100 = full close
+    pair_name = PAIR_NAMES.get(pair_id, f"Pair {pair_id}")
+
+    print(f"\nClosing {'all' if close_pct == 100 else f'{close_pct}%'} of {pair_name} trade #{trade_index}")
+
+    # Get current price for slippage
+    price = await get_price()
+    print(f"  {pair_name} price: ${price:,.2f}")
+
+    calldata = encode_close_trade(pair_id, trade_index, close_pct, price)
+    print(f"  Submitting close...")
+    result = await axon.execute(
+        protocol=OSTIUM_TRADING,
+        call_data=calldata,
+        token=OSTIUM_USDC,
+        amount=0,
+        protocol_name="Ostium Close",
+    )
+    if result.request_id and not result.tx_hash:
+        result = await wait_for_result(result.request_id, "close ")
+
+    if result.tx_hash:
+        print(f"  Trade closed! TX: {result.tx_hash}")
+    elif result.reason:
+        print(f"  Close failed: {result.reason}")
+
+
 async def cmd_price():
     pair_name = PAIR_NAMES.get(PAIR_ID, f"Pair {PAIR_ID}")
     price = await get_price()
@@ -212,13 +261,16 @@ Ostium Perps Trader — vault-as-trader via Axon
 
 Commands:
   open      Open a position (uses env config)
+  close     Close a position (PAIR_ID + TRADE_INDEX)
   price     Show current price for configured pair
   balance   Show vault USDC balance
   help      Show this message
 
 Examples:
   python trader.py open
-  python trader.py price
+  python trader.py close                              # close PAIR_ID=0, index=0, 100%
+  TRADE_INDEX=1 python trader.py close                # close trade index 1
+  CLOSE_PCT=50 python trader.py close                 # close 50% of position
   PAIR_ID=1 LEVERAGE=10 DIRECTION=short python trader.py open
 """
 
@@ -236,6 +288,8 @@ async def main():
 
     if cmd == "open":
         await cmd_open()
+    elif cmd == "close":
+        await cmd_close()
     elif cmd == "price":
         await cmd_price()
     elif cmd == "balance":
