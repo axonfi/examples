@@ -2,9 +2,9 @@
 
 ## What it does
 
-Trade perpetuals on [Ostium](https://ostium.org) — BTC, ETH, forex, commodities, indices, and stocks — with your Axon vault as the treasury.
+Trade perpetuals on [Ostium](https://ostium.org) — BTC, ETH, forex, commodities, indices, and stocks — with your Axon vault as the trader.
 
-The Axon vault holds your USDC. When the bot wants to open a position, it draws exactly the collateral it needs from the vault (subject to your spending limits and AI verification), then trades via the [Ostium Python SDK](https://github.com/0xOstium/ostium-python-sdk).
+The Axon vault holds your USDC and IS the trader on Ostium. When the bot opens a position, it signs an EIP-712 intent and the Axon relayer calls `executeProtocol()` on the vault. The vault approves USDC to Ostium's TradingStorage, then calls `openTrade` with `trader=vault`. Positions and gains belong to the vault, under owner control.
 
 **Chain:** Arbitrum Sepolia (testnet)
 **Protocol:** Ostium (leveraged perpetuals, 25+ markets)
@@ -14,14 +14,14 @@ The Axon vault holds your USDC. When the bot wants to open a position, it draws 
 
 ```
 1. Bot decides to open a position (e.g. 5x long BTC, $50 collateral)
-2. Checks Ostium trading wallet balance
-3. If insufficient: calls axon.pay() to fund trader from vault
-   → Axon enforces spending limits, AI scan, human review
-4. Opens position via Ostium SDK (approve USDC → openTrade)
-5. Manages positions: view, set TP/SL, close
+2. Bot signs EIP-712 ExecuteIntent via Axon SDK
+3. Relayer validates: spending limits, AI scan, simulation
+4. Vault approves USDC to Ostium TradingStorage (persistent approval)
+5. Vault calls Ostium Trading.openTrade() — vault IS the trader
+6. Position belongs to the vault, visible on Ostium
 ```
 
-The vault owner controls how much the bot can spend — per-transaction caps, daily limits, destination whitelists. The bot can only draw what's allowed.
+The vault owner controls how much the bot can spend — per-transaction caps, daily limits, AI verification thresholds. The bot can only execute what's allowed.
 
 ## Available Markets
 
@@ -36,18 +36,31 @@ Full list in [Ostium docs](https://ostium.org).
 
 ## Setup
 
+### 1. Install dependencies
+
 ```bash
 pip install -r requirements.txt
+```
+
+### 2. Vault setup (one-time)
+
+1. Deploy vault on Arbitrum Sepolia via [dashboard](https://app.axonfi.xyz)
+2. Register a bot on the vault
+3. Approve Ostium protocols on the vault:
+   - Ostium Trading: `0x2A9B9c988393f46a2537B0ff11E98c2C15a95afe`
+   - Ostium USDC: `0xe73B11Fb1e3eeEe8AF2a23079A4410Fe1B370548`
+4. Set bot `maxPerTxAmount=0` (Ostium USDC has no Uniswap pool for oracle pricing)
+5. Fund vault with Ostium testnet USDC (mint from Ostium faucet or transfer)
+
+### 3. Configure .env
+
+```bash
 cp .env.example .env
 ```
 
 Edit `.env`:
 - `AXON_VAULT_ADDRESS` — your vault on Arbitrum Sepolia
 - `AXON_BOT_PRIVATE_KEY` — bot key registered on the vault
-- `OSTIUM_TRADER_KEY` — a separate wallet for Ostium trading (receives USDC from vault)
-- `RPC_URL` — Arbitrum Sepolia RPC (free at [alchemy.com](https://alchemy.com))
-
-Get testnet USDC from [Circle Faucet](https://faucet.circle.com/) and deposit into your vault.
 
 ## Usage
 
@@ -55,45 +68,20 @@ Get testnet USDC from [Circle Faucet](https://faucet.circle.com/) and deposit in
 # Open a 5x long BTC position with $50 collateral
 python trader.py open
 
-# Check open positions
-python trader.py positions
-
-# Close a position (pair_id, trade_index)
-python trader.py close 0 0
-
-# Check current price
+# Check current price for configured pair
 python trader.py price
 
-# Check vault + trader balances
+# Check vault Ostium USDC balance
 python trader.py balance
-
-# Fund trader wallet from vault
-python trader.py fund 100
 ```
 
-## Example Output
+### Quick test (hardcoded config)
 
-```
-Axon vault:  0x9BFc82f49D229E6c9461016049B93c7ce8171574
-Axon bot:    0xda964c6C53394d9d9E49DfA29C2db39aB74fC74F
-Ostium trader: 0x1234...5678
-Pair: BTC/USD | Chain: Arbitrum Sepolia
-
-Opening Long BTC/USD
-  Collateral: 50.0 USDC | Leverage: 5.0x
-  Notional: ~$250
-  Trader USDC balance: 12.50
-  Need 50.00 USDC, have 12.50 — funding 47.50 from vault
-  Funding trader: 47.50 USDC from vault → 0x1234...
-  Funded! TX: 0xabc123...
-  BTC/USD price: $104,250.00
-  Trade opened! TX: 0xdef456...
-  Order ID: 42
+```bash
+python test_trade.py
 ```
 
 ## Customization
-
-Edit `.env` or pass environment variables:
 
 ```bash
 # Trade ETH with 10x leverage, short
@@ -103,11 +91,32 @@ PAIR_ID=1 LEVERAGE=10 DIRECTION=short python trader.py open
 PAIR_ID=5 COLLATERAL_USDC=100 python trader.py open
 ```
 
-## Architecture: Why Two Wallets?
+## Example Output
 
-Ostium requires the trading wallet to directly approve USDC to its contracts. Axon vaults use a relayer-based model (EIP-712 intents). Instead of trying to bridge these models, we use a simple pattern:
+```
+Vault: 0x723ff94280af1a5a2f924d00ee764724ee2e3182
+Bot:   0xD3b0c0A9910b32F203741D4c0483e4Eb5D2B3E0c
+Pair:  BTC/USD | Chain: Arbitrum Sepolia
 
-- **Axon vault** = treasury (holds the bulk of USDC, enforces spending policies)
-- **Ostium wallet** = trading account (holds only what's needed for active positions)
+Opening Long BTC/USD
+  Collateral: 50.0 USDC | Leverage: 5.0x
+  Notional: ~$250
 
-The bot draws from the vault on-demand, keeping the minimum needed in the trading wallet. The vault owner sees every funding transaction in the dashboard and can cap how much the bot can draw.
+  Approving USDC to TradingStorage...
+  Approved! TX: 0xc88c160b...
+
+  BTC/USD price: $70,013.58
+
+  Opening trade...
+  Trade opened! TX: 0xdafbd7dd...
+```
+
+## Architecture: Vault-as-Trader
+
+The Axon vault IS the Ostium trader. No separate wallet needed.
+
+- **Axon vault** = treasury + trader (holds USDC, opens positions, owns gains)
+- **Bot** = signs intents only (never touches funds or gas)
+- **Relayer** = validates and submits on-chain (pays gas)
+
+The vault calls `openTrade` with `trader=vault_address`, so positions are owned by the vault. The owner can view positions on Ostium using the vault address.

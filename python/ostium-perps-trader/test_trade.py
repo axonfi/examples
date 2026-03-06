@@ -10,17 +10,22 @@ So we do two executeProtocol calls:
 """
 
 import asyncio
-from web3 import Web3
+import os
+
 from decimal import Decimal
+from dotenv import load_dotenv
+from web3 import Web3
 
 from axonfi import AxonClient, Chain
 
 # ── Config ───────────────────────────────────────────────────────────────────
 
-VAULT = "0xe51eea58c8b4c8e502d1bcb8bb49bd1e662125fc"
-BOT_KEY = "0x4646fa303c86ec95d50a9be26f808a0f37776606d4553f3971c8f90c6a286906"
-CHAIN_ID = Chain.ArbitrumSepolia
-RPC_URL = "https://arb-sepolia.g.alchemy.com/v2/4oXy1MEAVhnFuAj_VLaQx"
+load_dotenv()
+
+VAULT = os.environ["AXON_VAULT_ADDRESS"]
+BOT_KEY = os.environ["AXON_BOT_PRIVATE_KEY"]
+CHAIN_ID = int(os.environ.get("AXON_CHAIN_ID", str(Chain.ArbitrumSepolia)))
+RPC_URL = os.environ.get("RPC_URL", "https://arb-sepolia.g.alchemy.com/v2/demo")
 
 OSTIUM_TRADING = "0x2A9B9c988393f46a2537B0ff11E98c2C15a95afe"
 OSTIUM_TRADING_STORAGE = "0x0b9F5243B29938668c9Cfbd7557A389EC7Ef88b8"
@@ -127,6 +132,17 @@ def encode_open_trade(vault_address: str, price: float) -> str:
     return contract.encode_abi("openTrade", [trade, builder_fee, order_type, slippage])
 
 
+async def wait_for_result(axon, request_id: str, label: str = "") -> "PaymentResult":
+    """Poll until terminal state (approved/rejected), max 60s."""
+    for _ in range(30):
+        result = await axon.poll_execute(request_id)
+        if result.status in ("approved", "rejected"):
+            return result
+        print(f"  {label}status: {result.status}...")
+        await asyncio.sleep(2)
+    return result
+
+
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 async def main():
@@ -171,8 +187,8 @@ async def main():
         elif result.request_id:
             print(f"  Request ID: {result.request_id}")
             print("  Waiting for approval...")
-            result = await axon.poll_execute(result.request_id)
-            print(f"  Status: {result.status}")
+            result = await wait_for_result(axon, result.request_id, "approve ")
+            print(f"  Final: {result.status}")
             if result.tx_hash:
                 print(f"  TX: {result.tx_hash}")
         if result.reason:
@@ -206,8 +222,8 @@ async def main():
     elif result.request_id:
         print(f"  Request ID: {result.request_id}")
         print("  Waiting for trade execution...")
-        result = await axon.poll_execute(result.request_id)
-        print(f"  Status: {result.status}")
+        result = await wait_for_result(axon, result.request_id, "trade ")
+        print(f"  Final: {result.status}")
         if result.tx_hash:
             print(f"  TX: {result.tx_hash}")
     if result.reason:
