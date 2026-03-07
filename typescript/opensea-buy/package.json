@@ -1,0 +1,18 @@
+{
+  "name": "opensea-buy-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "buy": "tsx buy.ts buy",
+    "listings": "tsx buy.ts listings",
+    "collection": "tsx buy.ts collection"
+  },
+  "dependencies": {
+    "@axonfi/sdk": "^0.4.0",
+    "dotenv": "^16.4.7",
+    "viem": "^2.46.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}
