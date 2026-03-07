@@ -40,7 +40,7 @@ import 'dotenv/config';
 // ── Axon client ─────────────────────────────────────────────────────────────
 
 const axon = new AxonClient({
-  vaultAddress: process.env.AXON_VAULT_ADDRESS!,
+  vaultAddress: process.env.AXON_VAULT_ADDRESS! as `0x${string}`,
   chainId: Number(process.env.AXON_CHAIN_ID ?? Chain.BaseSepolia),
   botPrivateKey: process.env.AXON_BOT_PRIVATE_KEY! as `0x${string}`,
 });

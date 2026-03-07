@@ -60,7 +60,7 @@ const WETH: Record<number, Address> = {
 };
 
 const axon = new AxonClient({
-  vaultAddress: process.env.AXON_VAULT_ADDRESS!,
+  vaultAddress: process.env.AXON_VAULT_ADDRESS! as `0x${string}`,
   chainId,
   botPrivateKey: process.env.AXON_BOT_PRIVATE_KEY! as `0x${string}`,
   relayerUrl: process.env.AXON_RELAYER_URL,
