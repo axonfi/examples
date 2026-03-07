@@ -1,35 +1,35 @@
 /**
  * Seaport NFT Listing — List an NFT for sale on OpenSea via the vault.
  *
- * STATUS: FAILS on vault VERSION 3 (missing ERC-1271)
- *
- * Seaport (OpenSea's protocol) uses off-chain signed orders. When an order
- * is created by a smart contract (like our vault), Seaport calls:
+ * Demonstrates ERC-1271 support. When an off-chain order is created by a smart
+ * contract (like an Axon vault), Seaport validates the signature by calling:
  *
  *   IERC1271(order.offerer).isValidSignature(orderHash, signature)
  *
- * If the contract doesn't implement ERC-1271, the call reverts and the
- * order is invalid. Our vault does NOT implement isValidSignature().
+ * The vault implements isValidSignature() and returns the magic value (0x1626ba7e)
+ * if the signer is the vault owner or an active registered bot. This enables
+ * bots to create signed Seaport orders on behalf of the vault.
  *
- * What works today:
- *   - BUYING NFTs via executeProtocol() (call Seaport.fulfillOrder) — works
- *   - Receiving NFTs (vault implements ERC721Receiver + ERC1155Receiver) — works
- *   - See examples/typescript/opensea-buy for a working buy example
+ * The same ERC-1271 support enables:
+ *   - NFT listings on OpenSea, Blur, LooksRare
+ *   - Limit orders on Cowswap, 1inch, 0x
+ *   - Permit2 signature-based transfers
+ *   - EigenLayer gasless delegation signatures
  *
- * What doesn't work:
- *   - LISTING/SELLING NFTs (requires ERC-1271 signature on the vault) — blocked
- *   - Creating limit orders on Cowswap, 1inch, 0x — blocked
- *   - Permit2 signature-based transfers — blocked
+ * Setup:
+ *   1. Deploy vault on Base Sepolia
+ *   2. Register bot
+ *   3. Transfer an NFT to the vault
  *
- * When vault VERSION 4 adds ERC-1271, this example will work.
- *
- * The isValidSignature() implementation would verify that the signature
- * was produced by the vault owner (or an authorized bot), making it safe
- * for the vault to "sign" Seaport orders.
+ * Usage:
+ *   cp .env.example .env
+ *   npm install
+ *   npx tsx list.ts check    # verify ERC-1271 support on vault
+ *   npx tsx list.ts show     # explain what a Seaport listing requires
  */
 
 import { AxonClient, Chain } from '@axonfi/sdk';
-import { createPublicClient, http, parseAbi, encodeFunctionData, keccak256, toBytes, concat, pad, toHex } from 'viem';
+import { createPublicClient, http, parseAbi, keccak256, toBytes } from 'viem';
 import { baseSepolia } from 'viem/chains';
 import 'dotenv/config';
 
@@ -67,49 +67,45 @@ async function checkERC1271() {
       args: [testHash, testSig],
     });
     console.log('isValidSignature returned:', result);
-    console.log('ERC-1271 is supported!');
-  } catch (err) {
-    const msg = (err as Error).message;
-    console.log('isValidSignature() call REVERTED.');
-    console.log('The vault does not implement ERC-1271.\n');
-    console.log('Impact — the vault cannot:');
-    console.log('  - List NFTs on OpenSea/Blur/LooksRare');
-    console.log('  - Create limit orders on Cowswap/1inch/0x');
-    console.log('  - Use Permit2 signature-based transfers');
-    console.log('  - Delegate via EigenLayer gasless signatures');
-    console.log('\nThe vault CAN still:');
-    console.log('  - Buy NFTs (fulfillOrder via executeProtocol)');
-    console.log('  - Fill existing orders on DEXes');
-    console.log('  - Use standard approve+call patterns');
-
-    if (msg.includes('revert') || msg.includes('execution reverted')) {
-      console.log('\n=== CONFIRMED: ERC-1271 not implemented ===');
+    if (result === '0x1626ba7e') {
+      console.log('ERC-1271 is supported! The vault can sign off-chain orders.');
+    } else {
+      console.log('Returned non-magic value — signature was not from owner or active bot.');
+      console.log('(This is expected for a dummy test signature.)');
     }
+  } catch (err) {
+    console.log('isValidSignature() call failed.');
+    console.log('Error:', (err as Error).message);
   }
+
+  console.log('\nThe vault validates signatures from:');
+  console.log('  - The vault owner (hardware wallet / multisig)');
+  console.log('  - Any active registered bot');
+  console.log('\nThis enables bots to create Seaport orders, Cowswap limit orders, etc.');
 }
 
-// ── Show what a Seaport listing would look like ──────────────────────────────
+// ── Show what a Seaport listing requires ────────────────────────────────────
 
 async function showListing() {
-  console.log('\n=== What a Seaport listing would require ===\n');
-  console.log('To list an NFT on OpenSea, the vault would need to:');
+  console.log('\n=== Seaport Listing Flow ===\n');
+  console.log('To list an NFT on OpenSea via an Axon vault:');
   console.log('');
   console.log('1. Approve the NFT to Seaport conduit (via executeProtocol)');
   console.log('2. Create an off-chain Seaport order with the vault as offerer');
-  console.log('3. Sign the order hash');
+  console.log('3. Sign the order hash with the bot key');
+  console.log('4. Submit the signed order to OpenSea API');
   console.log('');
-  console.log('Step 3 is where it breaks. Seaport validates the signature by calling:');
+  console.log('When a buyer fills the order, Seaport calls:');
   console.log('');
-  console.log('  IERC1271(vault).isValidSignature(orderHash, signature)');
+  console.log('  IERC1271(vault).isValidSignature(orderHash, botSignature)');
   console.log('');
-  console.log("Since the vault doesn't implement this, validation fails.");
-  console.log('');
-  console.log('The fix (VERSION 4) would add isValidSignature() that checks');
-  console.log('if the signature was produced by the vault owner:');
+  console.log('The vault verifies the bot is registered and active, then returns');
+  console.log('the magic value 0x1626ba7e — order is valid, trade executes.');
   console.log('');
   console.log('  function isValidSignature(bytes32 hash, bytes sig) returns (bytes4) {');
   console.log('    address signer = ECDSA.recover(hash, sig);');
-  console.log('    if (signer == owner()) return 0x1626ba7e; // ERC-1271 magic');
+  console.log('    if (signer == owner() || bots[signer].isActive)');
+  console.log('      return 0x1626ba7e; // ERC-1271 magic');
   console.log('    return 0xffffffff; // invalid');
   console.log('  }');
 }
@@ -126,6 +122,6 @@ switch (command) {
     break;
   default:
     console.log('Usage: npx tsx list.ts <check|show>');
-    console.log("  check — test if vault supports ERC-1271 (it doesn't)");
-    console.log('  show  — explain what a Seaport listing would require');
+    console.log('  check — verify vault supports ERC-1271 signatures');
+    console.log('  show  — explain the Seaport listing flow');
 }

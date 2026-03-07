@@ -1,20 +1,14 @@
 /**
  * WETH Wrapping — Wrap ETH to WETH via executeProtocol().
  *
- * STATUS: FAILS on vault VERSION 3 (msg.value limitation)
+ * Demonstrates the `value` field in ExecuteIntent, which forwards native ETH
+ * to payable protocol functions. WETH.deposit() reads msg.value to determine
+ * how much ETH to wrap — the bot signs the exact amount in the intent.
  *
- * WETH.deposit() is a payable function that wraps msg.value ETH into WETH.
- * But executeProtocol() calls `protocol.call(callData)` with msg.value = 0,
- * so deposit() succeeds but wraps 0 ETH — a silent no-op.
- *
- * The same limitation blocks:
+ * The same pattern works for any payable function:
  *   - Lido submit() — staking ETH for stETH
- *   - GMX sendWnt() — execution fees (workaround: use sendTokens(WETH))
  *   - Stargate/LayerZero send() — cross-chain message fees
- *   - Liquity openTrove() — ETH-collateral CDPs
- *
- * Workaround: swap ETH → WETH via executeSwap() through a DEX.
- * This costs ~0.3% more (DEX fee) but works with current contracts.
+ *   - NFT mints with ETH price
  *
  * Setup:
  *   1. Deploy vault on Base Sepolia
@@ -25,13 +19,12 @@
  * Usage:
  *   cp .env.example .env
  *   npm install
- *   npx tsx wrap.ts deposit    # try to wrap ETH → WETH (will fail: 0 wrapped)
- *   npx tsx wrap.ts workaround # swap ETH → WETH via DEX (works)
+ *   npx tsx wrap.ts deposit    # wrap ETH → WETH via deposit() with value
  *   npx tsx wrap.ts balance    # check vault ETH + WETH balances
  */
 
-import { AxonClient, Chain, Token } from '@axonfi/sdk';
-import { encodeFunctionData, createPublicClient, http, parseAbi, formatEther } from 'viem';
+import { AxonClient, Chain } from '@axonfi/sdk';
+import { encodeFunctionData, createPublicClient, http, parseAbi, formatEther, parseEther } from 'viem';
 import { baseSepolia } from 'viem/chains';
 import 'dotenv/config';
 
@@ -60,7 +53,7 @@ async function getBalances() {
   return { eth: ethBal, weth: wethBal };
 }
 
-// ── deposit: try to wrap ETH via executeProtocol (will fail) ─────────────────
+// ── deposit: wrap ETH via WETH.deposit() with value ─────────────────────────
 
 async function deposit() {
   const before = await getBalances();
@@ -71,73 +64,36 @@ async function deposit() {
     process.exit(1);
   }
 
-  // WETH.deposit() — a payable function with no args, uses msg.value
+  // Wrap a small amount (0.0005 ETH or half of balance if less)
+  const wrapAmount = before.eth < parseEther('0.001') ? before.eth / 2n : parseEther('0.0005');
+
+  // WETH.deposit() — payable, no args, wraps msg.value into WETH
   const callData = encodeFunctionData({
     abi: [{ type: 'function', name: 'deposit', inputs: [], outputs: [], stateMutability: 'payable' }],
     functionName: 'deposit',
   });
 
-  console.log('\nCalling WETH.deposit() via executeProtocol()...');
-  console.log('deposit() needs msg.value to know how much ETH to wrap.');
-  console.log('executeProtocol() sends msg.value = 0, so this will wrap nothing.\n');
+  console.log(`\nWrapping ${formatEther(wrapAmount)} ETH → WETH via WETH.deposit()...`);
+  console.log('The bot signs the ETH amount in the intent `value` field.');
+  console.log('The vault forwards it as msg.value to the WETH contract.\n');
 
   try {
     const result = await axon.execute({
       protocol: WETH,
       callData,
-      token: WETH, // doesn't matter, amount is 0
-      amount: 0,
+      token: WETH,
+      amount: 0, // no token approval needed — we're sending ETH
+      value: wrapAmount, // native ETH to forward
     });
 
     console.log('Result:', result);
 
     const after = await getBalances();
     console.log(`\nAFTER  — ETH: ${formatEther(after.eth)}, WETH: ${formatEther(after.weth)}`);
-
-    const wrapped = after.weth - before.weth;
-    if (wrapped === 0n) {
-      console.log('\n=== CONFIRMED: 0 ETH was wrapped ===');
-      console.log('deposit() succeeded on-chain but wrapped nothing (msg.value was 0).');
-      console.log('This is the msg.value limitation in executeProtocol().');
-      console.log('Use `npx tsx wrap.ts workaround` to swap via DEX instead.');
-    } else {
-      console.log(`\nWrapped ${formatEther(wrapped)} ETH → WETH`);
-    }
+    console.log(`Wrapped ${formatEther(after.weth - before.weth)} ETH → WETH`);
   } catch (err) {
     console.error('Error:', (err as Error).message);
-    console.log('\nIf rejected: make sure WETH is approved as a protocol on the vault.');
-  }
-}
-
-// ── workaround: swap ETH → WETH via DEX (works) ─────────────────────────────
-
-async function workaround() {
-  const before = await getBalances();
-  console.log(`\nBEFORE — ETH: ${formatEther(before.eth)}, WETH: ${formatEther(before.weth)}`);
-
-  if (before.eth === 0n) {
-    console.error('Vault has 0 ETH. Send some ETH to the vault first.');
-    process.exit(1);
-  }
-
-  const swapAmount = before.eth < 500000000000000n ? before.eth / 2n : 500000000000000n;
-
-  console.log(`\nSwapping ${formatEther(swapAmount)} ETH → WETH via executeSwap()...`);
-  console.log('This routes through an approved DEX router — no msg.value needed.\n');
-
-  try {
-    const result = await axon.swap({
-      toToken: Token.WETH,
-      minToAmount: swapAmount.toString(),
-    });
-
-    console.log('Result:', result);
-
-    const after = await getBalances();
-    console.log(`\nAFTER  — ETH: ${formatEther(after.eth)}, WETH: ${formatEther(after.weth)}`);
-    console.log(`Gained ${formatEther(after.weth - before.weth)} WETH via DEX swap.`);
-  } catch (err) {
-    console.error('Error:', (err as Error).message);
+    console.log('\nMake sure WETH is approved as a protocol on the vault.');
   }
 }
 
@@ -157,15 +113,11 @@ switch (command) {
   case 'deposit':
     await deposit();
     break;
-  case 'workaround':
-    await workaround();
-    break;
   case 'balance':
     await balance();
     break;
   default:
-    console.log('Usage: npx tsx wrap.ts <deposit|workaround|balance>');
-    console.log('  deposit    — try wrapping ETH via WETH.deposit() (fails: msg.value=0)');
-    console.log('  workaround — swap ETH→WETH via DEX (works)');
-    console.log('  balance    — check vault ETH + WETH balances');
+    console.log('Usage: npx tsx wrap.ts <deposit|balance>');
+    console.log('  deposit — wrap ETH → WETH via WETH.deposit() with value');
+    console.log('  balance — check vault ETH + WETH balances');
 }

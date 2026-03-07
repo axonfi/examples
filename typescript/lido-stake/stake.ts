@@ -1,22 +1,15 @@
 /**
  * Lido Staking — Stake ETH for stETH via executeProtocol().
  *
- * STATUS: FAILS on vault VERSION 3 (msg.value limitation)
- *
- * Lido's submit() is a payable function: `lido.submit{value: X}(referral)`
- * It reads msg.value to know how much ETH to stake. Since executeProtocol()
- * sends msg.value = 0, the call stakes nothing.
+ * Demonstrates the `value` field in ExecuteIntent for Lido's payable submit().
+ * Lido's submit() reads msg.value to determine how much ETH to stake.
  *
  * NOTE: Lido staking (submit()) only exists on Ethereum L1.
  * On L2s like Base/Arbitrum, you get wstETH by swapping, not staking.
  *
- * Workaround (works today on Base/Arbitrum):
- *   Swap ETH → wstETH via executeSwap() through a DEX.
- *   wstETH is the wrapped, non-rebasing version of stETH — preferred on L2s.
- *   Cost: ~0.3% DEX fee vs free Lido direct staking.
- *
- * When vault VERSION 4 adds msg.value support to executeProtocol(),
- * this example will work for direct L1 Lido staking.
+ * This example shows both approaches:
+ *   - direct: call Lido submit() with value (L1 only)
+ *   - swap:   swap ETH -> wstETH via DEX (works on L2s)
  *
  * Setup:
  *   1. Deploy vault on Base (mainnet or Sepolia)
@@ -26,13 +19,13 @@
  * Usage:
  *   cp .env.example .env
  *   npm install
- *   npx tsx stake.ts direct     # try direct Lido submit() — FAILS (msg.value)
- *   npx tsx stake.ts swap       # swap ETH → wstETH via DEX — WORKS
+ *   npx tsx stake.ts direct     # stake ETH via Lido submit() (L1 only)
+ *   npx tsx stake.ts swap       # swap ETH -> wstETH via DEX (L2)
  *   npx tsx stake.ts balance    # check vault balances
  */
 
 import { AxonClient, Chain } from '@axonfi/sdk';
-import { encodeFunctionData, createPublicClient, http, parseAbi, formatEther } from 'viem';
+import { encodeFunctionData, createPublicClient, http, parseAbi, formatEther, parseEther } from 'viem';
 import { base } from 'viem/chains';
 import 'dotenv/config';
 
@@ -66,13 +59,12 @@ async function getBalances() {
   return { eth: ethBal, wsteth: wstethBal };
 }
 
-// ── direct: try Lido submit() via executeProtocol (will fail) ────────────────
+// ── direct: Lido submit() via executeProtocol with value ────────────────────
 
 async function direct() {
   console.log('\n=== Direct Lido Staking via executeProtocol() ===\n');
   console.log('Lido submit() is payable — it uses msg.value to determine stake amount.');
-  console.log('executeProtocol() calls protocol.call(callData) with msg.value = 0.');
-  console.log('Result: the call succeeds but stakes 0 ETH.\n');
+  console.log('The bot signs the ETH amount in the intent `value` field.\n');
 
   // Lido submit(address _referral) — payable
   const callData = encodeFunctionData({
@@ -86,20 +78,27 @@ async function direct() {
       },
     ],
     functionName: 'submit',
-    args: ['0x0000000000000000000000000000000000000000' as `0x${string}`], // no referral
+    args: ['0x0000000000000000000000000000000000000000' as `0x${string}`],
   });
 
-  console.log('Encoded callData:', callData);
-  console.log('\nThis would need to be called as:');
-  console.log('  lido.submit{value: 1 ether}(address(0))');
-  console.log('\nBut executeProtocol() does:');
-  console.log('  lido.call(callData)  // msg.value = 0');
-  console.log('\nOn Ethereum L1, this would stake 0 ETH.');
-  console.log('On L2s, Lido submit() is not available at all.');
-  console.log('\nUse `npx tsx stake.ts swap` for the working L2 workaround.');
+  const stakeAmount = parseEther('0.001');
+
+  console.log('Example call (Ethereum L1 only):');
+  console.log(`  axon.execute({ protocol: LIDO, callData, token: LIDO, amount: 0, value: ${stakeAmount} })`);
+  console.log('\nOn L2s, use `npx tsx stake.ts swap` for the DEX workaround.');
+
+  // Uncomment to actually execute on L1:
+  // const result = await axon.execute({
+  //   protocol: LIDO_L1,
+  //   callData,
+  //   token: LIDO_L1,
+  //   amount: 0,
+  //   value: stakeAmount,
+  // });
+  // console.log('Result:', result);
 }
 
-// ── swap: ETH → wstETH via DEX (works on L2) ────────────────────────────────
+// ── swap: ETH -> wstETH via DEX (works on L2) ──────────────────────────────
 
 async function swap() {
   const before = await getBalances();
@@ -110,9 +109,9 @@ async function swap() {
     process.exit(1);
   }
 
-  // Swap a small amount of ETH → wstETH via DEX
+  // Swap a small amount of ETH -> wstETH via DEX
   const swapAmount = before.eth < 500000000000000n ? before.eth / 2n : 500000000000000n;
-  console.log(`\nSwapping ${formatEther(swapAmount)} ETH → wstETH via executeSwap()...`);
+  console.log(`\nSwapping ${formatEther(swapAmount)} ETH -> wstETH via executeSwap()...`);
 
   try {
     const result = await axon.swap({
@@ -155,7 +154,7 @@ switch (command) {
     break;
   default:
     console.log('Usage: npx tsx stake.ts <direct|swap|balance>');
-    console.log('  direct  — show why Lido submit() fails (msg.value=0)');
-    console.log('  swap    — swap ETH→wstETH via DEX (works on L2s)');
+    console.log('  direct  — stake ETH via Lido submit() with value (L1 only)');
+    console.log('  swap    — swap ETH->wstETH via DEX (works on L2s)');
     console.log('  balance — check vault ETH + wstETH balances');
 }
