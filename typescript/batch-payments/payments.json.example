@@ -1,0 +1,20 @@
+[
+  {
+    "to": "0x1234567890abcdef1234567890abcdef12345678",
+    "token": "USDC",
+    "amount": 10,
+    "memo": "Bounty payout - issue #42"
+  },
+  {
+    "to": "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+    "token": "USDC",
+    "amount": 25,
+    "memo": "Revenue split - March"
+  },
+  {
+    "to": "0x9876543210fedcba9876543210fedcba98765432",
+    "token": "USDC",
+    "amount": 5,
+    "memo": "API credits top-up"
+  }
+]

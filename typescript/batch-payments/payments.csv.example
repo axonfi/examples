@@ -1,0 +1,4 @@
+to,token,amount,memo
+0x1234567890abcdef1234567890abcdef12345678,USDC,10,Bounty payout
+0xabcdefabcdefabcdefabcdefabcdefabcdefabcd,USDC,25,Revenue split
+0x9876543210fedcba9876543210fedcba98765432,USDC,5,API credits

@@ -1,0 +1,23 @@
+[
+  {
+    "name": "api-credits-alice",
+    "to": "0x1234567890abcdef1234567890abcdef12345678",
+    "token": "USDC",
+    "amount": 5,
+    "interval": "24h"
+  },
+  {
+    "name": "weekly-data-provider",
+    "to": "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+    "token": "USDC",
+    "amount": 25,
+    "interval": "7d"
+  },
+  {
+    "name": "hourly-oracle-fee",
+    "to": "0x9876543210fedcba9876543210fedcba98765432",
+    "token": "USDC",
+    "amount": 0.1,
+    "interval": "1h"
+  }
+]
