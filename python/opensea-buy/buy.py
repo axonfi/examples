@@ -84,9 +84,12 @@ def get_listings(collection_slug: str, limit: int = 5) -> list[dict]:
     """Get cheapest listings for a collection."""
     data = opensea_get(
         f"/api/v2/orders/{OPENSEA_CHAIN}/seaport/listings"
-        f"?collection_slug={collection_slug}&order_by=eth_price&limit={limit}"
+        f"?collection_slug={collection_slug}&limit={limit}"
     )
-    return data.get("orders", [])
+    # Sort by price client-side (OpenSea requires payment_token filter for server-side sort)
+    orders = data.get("orders", [])
+    orders.sort(key=lambda o: int(o.get("current_price", "0")))
+    return orders
 
 
 def get_collection_info(slug: str) -> dict:

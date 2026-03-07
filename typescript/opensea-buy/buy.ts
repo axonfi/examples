@@ -120,9 +120,16 @@ async function openSeaFetch(path: string): Promise<any> {
 
 async function getListings(collectionSlug: string, limit = 5): Promise<OpenSeaListing[]> {
   const data = await openSeaFetch(
-    `/api/v2/orders/${openSeaChain}/seaport/listings?collection_slug=${collectionSlug}&order_by=eth_price&limit=${limit}`,
+    `/api/v2/orders/${openSeaChain}/seaport/listings?collection_slug=${collectionSlug}&limit=${limit}`,
   );
-  return data.orders ?? [];
+  // Sort by price client-side (OpenSea requires payment_token filter for server-side sort)
+  const orders = (data.orders ?? []) as OpenSeaListing[];
+  orders.sort((a, b) => {
+    const pa = BigInt(a.current_price);
+    const pb = BigInt(b.current_price);
+    return pa < pb ? -1 : pa > pb ? 1 : 0;
+  });
+  return orders;
 }
 
 async function getCollectionInfo(slug: string): Promise<OpenSeaCollection> {
