@@ -5,10 +5,10 @@ Uniswap V3's NonfungiblePositionManager.mint() needs TWO token approvals
 (USDC + WETH), but execute() only auto-approves ONE per call.
 
 Solution — two execute() calls:
-  1. Persistent WETH approval:  execute(protocol=WETH, amount=0, callData=approve(NPM, max))
-     amount=0 tells the vault to skip its approve→revoke cycle, so the
+  1. Persistent WETH approval:  execute(protocol=WETH, amounts=[0], callData=approve(NPM, max))
+     amounts=[0] tells the vault to skip its approve→revoke cycle, so the
      approval set by the calldata persists after the call.
-  2. Mint LP position:  execute(protocol=NPM, token=USDC, amount=X, callData=mint(...))
+  2. Mint LP position:  execute(protocol=NPM, tokens=[USDC], amounts=[X], callData=mint(...))
      Vault auto-approves USDC → NPM, NPM pulls USDC + WETH, vault revokes USDC.
      WETH uses the persistent approval from step 1.
 
@@ -239,8 +239,8 @@ async def cmd_mint():
     result = await axon.execute(
         protocol=WETH,
         call_data=call_data,
-        token=WETH,
-        amount=0,              # 0 = skip vault's approve/revoke cycle
+        tokens=[WETH],
+        amounts=[0],           # 0 = skip vault's approve/revoke cycle
         protocol_name="WETH Approval",
         memo="Persistent WETH approval to NPM",
     )
@@ -279,8 +279,8 @@ async def cmd_mint():
     result = await axon.execute(
         protocol=NPM,
         call_data=call_data,
-        token=USDC,
-        amount=usdc_amount,
+        tokens=[USDC],
+        amounts=[usdc_amount],
         protocol_name="Uniswap V3 Mint LP",
         memo=f"Mint {USDC_AMOUNT} USDC + {WETH_AMOUNT} WETH LP",
     )
@@ -312,8 +312,8 @@ async def cmd_remove(token_id: int):
     result = await axon.execute(
         protocol=NPM,
         call_data=call_data,
-        token=USDC,
-        amount=0,  # no approval needed
+        tokens=[USDC],
+        amounts=[0],  # no approval needed
         protocol_name="Uniswap V3 Decrease",
         memo=f"Decrease liquidity NFT #{token_id}",
     )
@@ -334,8 +334,8 @@ async def cmd_remove(token_id: int):
     result = await axon.execute(
         protocol=NPM,
         call_data=call_data,
-        token=USDC,
-        amount=0,
+        tokens=[USDC],
+        amounts=[0],
         protocol_name="Uniswap V3 Collect",
         memo=f"Collect tokens NFT #{token_id}",
     )

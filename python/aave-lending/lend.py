@@ -141,8 +141,8 @@ async def cmd_supply():
     result = await axon.execute(
         protocol=AAVE_POOL,
         call_data=call_data,
-        token=AAVE_USDC,       # raw address — not a known symbol
-        amount=amount,          # raw base units (int)
+        tokens=[AAVE_USDC],    # raw address — not a known symbol
+        amounts=[amount],       # raw base units (int)
         protocol_name="Aave V3 Supply",
         memo=f"Supply {SUPPLY_AMOUNT} USDC to Aave",
     )
@@ -167,8 +167,8 @@ async def cmd_withdraw():
     result = await axon.execute(
         protocol=AAVE_POOL,
         call_data=call_data,
-        token=AAVE_USDC,       # required field, but amount=0 means no approval
-        amount=0,              # 0 = skip approve/revoke, just call the protocol
+        tokens=[AAVE_USDC],    # required field, but amount=0 means no approval
+        amounts=[0],            # 0 = skip approve/revoke, just call the protocol
         protocol_name="Aave V3 Withdraw",
         memo=f"Withdraw {SUPPLY_AMOUNT} USDC from Aave",
     )

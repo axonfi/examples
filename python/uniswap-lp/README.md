@@ -22,8 +22,8 @@ Provide liquidity on Uniswap V3 from your Axon vault. Mint a USDC/WETH LP positi
 
 Uniswap V3's `mint()` needs TWO token approvals (USDC + WETH), but `execute()` only auto-approves ONE per call. The solution:
 
-1. **Persistent WETH approval:** Call `execute(amount=0)` with `approve(NPM, maxUint256)` as calldata. When `amount=0`, the vault skips its approve/revoke cycle, so the approval persists.
-2. **Mint with USDC:** Call `execute(token=USDC, amount=X)` with `mint(...)` as calldata. The vault auto-approves USDC to NPM, NPM pulls both tokens, vault revokes USDC after.
+1. **Persistent WETH approval:** Call `execute(amounts=[0])` with `approve(NPM, maxUint256)` as calldata. When `amounts=[0]`, the vault skips its approve/revoke cycle, so the approval persists.
+2. **Mint with USDC:** Call `execute(tokens=[USDC], amounts=[X])` with `mint(...)` as calldata. The vault auto-approves USDC to NPM, NPM pulls both tokens, vault revokes USDC after.
 
 This pattern works for any DeFi protocol that needs multiple token approvals.
 

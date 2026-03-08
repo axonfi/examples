@@ -130,12 +130,10 @@ async function cmdMint() {
     args: [vault],
   });
 
-  // amount=0 because mint is free (no token transfer needed)
+  // tokens/amounts empty because mint is free (no token transfer needed)
   let result = await axon.execute({
     protocol: NFT_CONTRACT,
     callData,
-    token: NFT_CONTRACT, // placeholder — no actual token approval needed
-    amount: 0n,
     protocolName: 'TestNFT Mint',
     memo: 'Mint test NFT to vault',
   });

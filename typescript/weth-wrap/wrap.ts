@@ -81,8 +81,8 @@ async function deposit() {
     const result = await axon.execute({
       protocol: WETH,
       callData,
-      token: WETH,
-      amount: 0, // no token approval needed — we're sending ETH
+      tokens: [WETH],
+      amounts: [0], // no token approval needed — we're sending ETH
       value: wrapAmount, // native ETH to forward
     });
 

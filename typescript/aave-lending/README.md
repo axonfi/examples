@@ -11,9 +11,9 @@ Supply and withdraw USDC to Aave V3 from an Axon vault on Base Sepolia.
 3. Axon vault approves USDC to the Pool, calls supply, then revokes approval
 4. aTokens (aUSDC) accrue in the vault — earning yield under owner control
 
-For withdrawals, no approval is needed — Aave Pool burns aTokens directly. Pass `amount: 0` to skip the approval step (see tip below).
+For withdrawals, no approval is needed — Aave Pool burns aTokens directly. Pass `amounts: [0]` to skip the approval step (see tip below).
 
-> **Tip: `amount = 0` skips the approval cycle.** When you call `execute()` with `amount > 0`, the vault does: approve token to protocol → call protocol → revoke approval. When `amount = 0`, the vault skips approve/revoke and just calls the protocol directly. Use this for any protocol call where the vault doesn't need to grant token spending permission (withdrawals, claiming rewards, closing positions, etc.).
+> **Tip: `amounts: [0]` skips the approval cycle.** When you call `execute()` with a non-zero amount, the vault does: approve token to protocol → call protocol → revoke approval. When `amounts: [0]`, the vault skips approve/revoke and just calls the protocol directly. Use this for any protocol call where the vault doesn't need to grant token spending permission (withdrawals, claiming rewards, closing positions, etc.).
 
 ## Setup
 

@@ -110,8 +110,8 @@ async function cmdSupply() {
   const result = await axon.execute({
     protocol: AAVE_POOL,
     callData,
-    token: AAVE_USDC, // raw address — not a known symbol
-    amount, // raw base units (bigint)
+    tokens: [AAVE_USDC], // raw address — not a known symbol
+    amounts: [amount], // raw base units (bigint)
     protocolName: 'Aave V3 Supply',
     memo: `Supply ${SUPPLY_AMOUNT} USDC to Aave`,
   });
@@ -143,8 +143,8 @@ async function cmdWithdraw() {
   const result = await axon.execute({
     protocol: AAVE_POOL,
     callData,
-    token: AAVE_USDC, // required field, but amount=0 means no approval
-    amount: 0n, // 0 = skip approve/revoke, just call the protocol
+    tokens: [AAVE_USDC], // required field, but amount=0 means no approval
+    amounts: [0n], // 0 = skip approve/revoke, just call the protocol
     protocolName: 'Aave V3 Withdraw',
     memo: `Withdraw ${SUPPLY_AMOUNT} USDC from Aave`,
   });

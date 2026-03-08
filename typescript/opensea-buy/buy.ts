@@ -284,8 +284,8 @@ async function cmdBuy(slug: string) {
   let result = await axon.execute({
     protocol: weth,
     callData: approveCalldata,
-    token: weth,
-    amount: 0n, // No token pull — just approval calldata
+    tokens: [weth],
+    amounts: [0n], // No token pull — just approval calldata
     protocolName: 'WETH Approve for Seaport',
     memo: `Approve ${priceEth} WETH for NFT purchase`,
   });
@@ -305,8 +305,8 @@ async function cmdBuy(slug: string) {
   result = await axon.execute({
     protocol: seaportTarget,
     callData: seaportCalldata,
-    token: weth,
-    amount: priceWei, // The WETH amount the vault pays
+    tokens: [weth],
+    amounts: [priceWei], // The WETH amount the vault pays
     protocolName: 'OpenSea Seaport',
     memo: `Buy NFT #${tokenId} from ${slug} for ${priceEth} ETH`,
   });

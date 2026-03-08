@@ -178,8 +178,8 @@ async def cmd_open():
     result = await axon.execute(
         protocol=OSTIUM_USDC,
         call_data=approve_calldata,
-        token=OSTIUM_USDC,
-        amount=0,
+        tokens=[OSTIUM_USDC],
+        amounts=[0],
         protocol_name="Ostium USDC Approve",
     )
     if result.request_id and not result.tx_hash:
@@ -200,8 +200,8 @@ async def cmd_open():
     result = await axon.execute(
         protocol=OSTIUM_TRADING,
         call_data=calldata,
-        token=OSTIUM_USDC,
-        amount=collateral_raw,
+        tokens=[OSTIUM_USDC],
+        amounts=[collateral_raw],
         protocol_name="Ostium",
     )
     if result.request_id and not result.tx_hash:
@@ -230,8 +230,8 @@ async def cmd_close():
     result = await axon.execute(
         protocol=OSTIUM_TRADING,
         call_data=calldata,
-        token=OSTIUM_USDC,
-        amount=0,
+        tokens=[OSTIUM_USDC],
+        amounts=[0],
         protocol_name="Ostium Close",
     )
     if result.request_id and not result.tx_hash:

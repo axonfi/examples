@@ -237,8 +237,8 @@ def cmd_buy(slug: str):
     result = axon.execute(
         protocol=weth,
         call_data=approve_calldata,
-        token=weth,
-        amount=0,
+        tokens=[weth],
+        amounts=[0],
         protocol_name="WETH Approve for Seaport",
         memo=f"Approve {price_eth} WETH for NFT purchase",
     )
@@ -256,8 +256,8 @@ def cmd_buy(slug: str):
     result = axon.execute(
         protocol=seaport_target,
         call_data=seaport_calldata,
-        token=weth,
-        amount=price_wei,
+        tokens=[weth],
+        amounts=[price_wei],
         protocol_name="OpenSea Seaport",
         memo=f"Buy NFT #{token_id} from {slug} for {price_eth} ETH",
     )

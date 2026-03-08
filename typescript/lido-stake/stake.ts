@@ -84,15 +84,15 @@ async function direct() {
   const stakeAmount = parseEther('0.001');
 
   console.log('Example call (Ethereum L1 only):');
-  console.log(`  axon.execute({ protocol: LIDO, callData, token: LIDO, amount: 0, value: ${stakeAmount} })`);
+  console.log(`  axon.execute({ protocol: LIDO, callData, tokens: [LIDO], amounts: [0], value: ${stakeAmount} })`);
   console.log('\nOn L2s, use `npx tsx stake.ts swap` for the DEX workaround.');
 
   // Uncomment to actually execute on L1:
   // const result = await axon.execute({
   //   protocol: LIDO_L1,
   //   callData,
-  //   token: LIDO_L1,
-  //   amount: 0,
+  //   tokens: [LIDO_L1],
+  //   amounts: [0],
   //   value: stakeAmount,
   // });
   // console.log('Result:', result);

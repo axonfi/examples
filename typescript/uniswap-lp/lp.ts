@@ -6,10 +6,10 @@
  * (USDC + WETH), but execute() only auto-approves ONE per call.
  *
  * Solution — two execute() calls:
- *   1. Persistent WETH approval: execute(protocol=WETH, amount=0, callData=approve(NPM, max))
- *      amount=0 tells the vault to skip its approve/revoke cycle, so the
+ *   1. Persistent WETH approval: execute(protocol=WETH, amounts=[0], callData=approve(NPM, max))
+ *      amounts=[0] tells the vault to skip its approve/revoke cycle, so the
  *      approval set by the calldata persists after the call.
- *   2. Mint LP position: execute(protocol=NPM, token=USDC, amount=X, callData=mint(...))
+ *   2. Mint LP position: execute(protocol=NPM, tokens=[USDC], amounts=[X], callData=mint(...))
  *      Vault auto-approves USDC to NPM, NPM pulls USDC + WETH, vault revokes USDC.
  *      WETH uses the persistent approval from step 1.
  *
@@ -239,8 +239,8 @@ async function cmdMint() {
   let result = await axon.execute({
     protocol: WETH,
     callData: approveCallData,
-    token: WETH,
-    amount: 0n, // skip vault's approve/revoke cycle
+    tokens: [WETH],
+    amounts: [0n], // skip vault's approve/revoke cycle
     protocolName: 'WETH Approval',
     memo: 'Persistent WETH approval to NPM',
   });
@@ -286,8 +286,8 @@ async function cmdMint() {
   result = await axon.execute({
     protocol: NPM,
     callData: mintCallData,
-    token: USDC,
-    amount: usdcAmount,
+    tokens: [USDC],
+    amounts: [usdcAmount],
     protocolName: 'Uniswap V3 Mint LP',
     memo: `Mint ${USDC_AMOUNT} USDC + ${WETH_AMOUNT} WETH LP`,
   });
@@ -329,8 +329,8 @@ async function cmdRemove(tokenId: bigint) {
   let result = await axon.execute({
     protocol: NPM,
     callData: decreaseCallData,
-    token: USDC,
-    amount: 0n,
+    tokens: [USDC],
+    amounts: [0n],
     protocolName: 'Uniswap V3 Decrease',
     memo: `Decrease liquidity NFT #${tokenId}`,
   });
@@ -351,8 +351,8 @@ async function cmdRemove(tokenId: bigint) {
   result = await axon.execute({
     protocol: NPM,
     callData: collectCallData,
-    token: USDC,
-    amount: 0n,
+    tokens: [USDC],
+    amounts: [0n],
     protocolName: 'Uniswap V3 Collect',
     memo: `Collect tokens NFT #${tokenId}`,
   });
