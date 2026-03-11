@@ -98,8 +98,8 @@ Chain: Base Sepolia
 
 ## Contract Addresses (Base Sepolia)
 
-| Contract | Address |
-|----------|---------|
+| Contract                   | Address                                      |
+| -------------------------- | -------------------------------------------- |
 | NonfungiblePositionManager | `0x27F971cb582BF9E50F397e4d29a5C7A34f11faA2` |
-| USDC | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
-| WETH | `0x4200000000000000000000000000000000000006` |
+| USDC                       | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
+| WETH                       | `0x4200000000000000000000000000000000000006` |

@@ -42,11 +42,11 @@ npx tsx nft.ts info 0
 
 ## NFT support in AxonVault
 
-| Feature | Supported |
-|---------|-----------|
-| Receive ERC-721 (safeTransferFrom) | Yes |
-| Receive ERC-1155 | Yes |
-| Owner withdraw ERC-721 | Yes (`withdrawERC721`) |
-| Owner withdraw ERC-1155 | Yes (`withdrawERC1155`) |
-| Bot mint/buy NFTs via executeProtocol | Yes |
-| ERC-165 supportsInterface | Yes |
+| Feature                               | Supported               |
+| ------------------------------------- | ----------------------- |
+| Receive ERC-721 (safeTransferFrom)    | Yes                     |
+| Receive ERC-1155                      | Yes                     |
+| Owner withdraw ERC-721                | Yes (`withdrawERC721`)  |
+| Owner withdraw ERC-1155               | Yes (`withdrawERC1155`) |
+| Bot mint/buy NFTs via executeProtocol | Yes                     |
+| ERC-165 supportsInterface             | Yes                     |

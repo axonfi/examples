@@ -56,6 +56,7 @@ python buy.py collection <collection-slug>
 ## Security
 
 NFT operations go through Axon's screening pipeline:
+
 - **NFT approvals** (WETH approve) may trigger human review
 - **NFT transfers** force AI scan regardless of value
 - Owner can reject from the mobile app

@@ -44,7 +44,12 @@ function parseJson(content: string): Payment[] {
     if (!p.to || !p.token || !p.amount) {
       throw new Error(`Payment ${i + 1}: missing required fields (to, token, amount)`);
     }
-    return { to: String(p.to), token: String(p.token), amount: Number(p.amount), memo: p.memo ? String(p.memo) : undefined };
+    return {
+      to: String(p.to),
+      token: String(p.token),
+      amount: Number(p.amount),
+      memo: p.memo ? String(p.memo) : undefined,
+    };
   });
 }
 
@@ -52,7 +57,10 @@ function parseCsv(content: string): Payment[] {
   const lines = content.trim().split('\n');
   if (lines.length < 2) throw new Error('CSV must have a header row and at least one payment');
 
-  const header = lines[0].toLowerCase().split(',').map((h) => h.trim());
+  const header = lines[0]
+    .toLowerCase()
+    .split(',')
+    .map((h) => h.trim());
   const toIdx = header.indexOf('to');
   const tokenIdx = header.indexOf('token');
   const amountIdx = header.indexOf('amount');
@@ -62,15 +70,18 @@ function parseCsv(content: string): Payment[] {
     throw new Error('CSV must have columns: to, token, amount (and optional: memo)');
   }
 
-  return lines.slice(1).filter((l) => l.trim()).map((line, i) => {
-    const cols = line.split(',').map((c) => c.trim());
-    return {
-      to: cols[toIdx],
-      token: cols[tokenIdx],
-      amount: Number(cols[amountIdx]),
-      memo: memoIdx >= 0 ? cols[memoIdx] : undefined,
-    };
-  });
+  return lines
+    .slice(1)
+    .filter((l) => l.trim())
+    .map((line, i) => {
+      const cols = line.split(',').map((c) => c.trim());
+      return {
+        to: cols[toIdx],
+        token: cols[tokenIdx],
+        amount: Number(cols[amountIdx]),
+        memo: memoIdx >= 0 ? cols[memoIdx] : undefined,
+      };
+    });
 }
 
 function loadPayments(filePath: string): Payment[] {

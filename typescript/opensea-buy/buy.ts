@@ -24,15 +24,7 @@
  */
 
 import { AxonClient, Chain } from '@axonfi/sdk';
-import {
-  createPublicClient,
-  encodeFunctionData,
-  http,
-  parseAbi,
-  type Address,
-  type Hex,
-  formatEther,
-} from 'viem';
+import { createPublicClient, encodeFunctionData, http, parseAbi, type Address, type Hex, formatEther } from 'viem';
 import { baseSepolia, base } from 'viem/chains';
 import 'dotenv/config';
 
@@ -107,7 +99,7 @@ async function openSeaFetch(path: string): Promise<any> {
   const url = `${OPENSEA_BASE}${path}`;
   const res = await fetch(url, {
     headers: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'X-API-KEY': OPENSEA_API_KEY!,
     },
   });
@@ -140,7 +132,7 @@ async function getFulfillmentData(orderHash: string, fulfillerAddress: string) {
   const res = await fetch(`${OPENSEA_BASE}/api/v2/listings/fulfillment`, {
     method: 'POST',
     headers: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'Content-Type': 'application/json',
       'X-API-KEY': OPENSEA_API_KEY!,
     },

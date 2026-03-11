@@ -58,13 +58,14 @@ npx tsx buy.ts collection <collection-slug>
 ## Security
 
 NFT operations go through Axon's screening pipeline:
+
 - **NFT approvals** (like WETH approve to Seaport) trigger human review
 - **NFT transfers** force AI scan regardless of USD value
 - The vault owner can reject any suspicious operation from the mobile app
 
 ## Supported chains
 
-| Chain | Seaport 1.6 | OpenSea API chain |
-|-------|-------------|-------------------|
-| Base Sepolia | `0x00...B395` | `base_sepolia` |
-| Base | `0x00...B395` | `base` |
+| Chain        | Seaport 1.6   | OpenSea API chain |
+| ------------ | ------------- | ----------------- |
+| Base Sepolia | `0x00...B395` | `base_sepolia`    |
+| Base         | `0x00...B395` | `base`            |
