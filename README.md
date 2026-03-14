@@ -57,5 +57,5 @@ npx tsx agent.ts
 - [Documentation](https://axonfi.xyz/llms.txt)
 - [npm — @axonfi/sdk](https://www.npmjs.com/package/@axonfi/sdk) — `npm install @axonfi/sdk`
 - [PyPI — axonfi](https://pypi.org/project/axonfi/) — `pip install axonfi`
-- [Smart Contracts](https://github.com/axonfi/smart-contracts)
+- [Smart Contracts](https://github.com/axonfi/core)
 - [Twitter/X — @axonfixyz](https://x.com/axonfixyz)
