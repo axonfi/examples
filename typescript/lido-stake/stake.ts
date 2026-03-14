@@ -117,6 +117,8 @@ async function swap() {
     const result = await axon.swap({
       toToken: WSTETH,
       minToAmount: '1', // any amount — relayer handles slippage
+      fromToken: 'WETH',
+      maxFromAmount: swapAmount.toString(),
     });
 
     console.log('Result:', result);
