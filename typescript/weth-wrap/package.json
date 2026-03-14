@@ -1,9 +1,9 @@
 {
-  "name": "axon-uniswap-lp",
+  "name": "axon-weth-wrap",
   "private": true,
   "type": "module",
   "dependencies": {
-    "@axonfi/sdk": "^0.15.0",
+    "@axonfi/sdk": "latest",
     "dotenv": "^16.4.0",
     "viem": "^2.0.0"
   },

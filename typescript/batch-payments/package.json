@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@axonfi/sdk": "latest",
+    "@axonfi/sdk": "^0.15.0",
     "dotenv": "^16.4.0"
   },
   "devDependencies": {
