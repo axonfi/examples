@@ -94,6 +94,20 @@ async function main() {
     console.log(`Transaction: https://sepolia.basescan.org/tx/${result.txHash}`);
   }
 
+  // ── 7. Check vault value (USD) ──────────────────────────────────────
+  console.log('\nChecking vault value...');
+  const value = await axon.getVaultValue();
+  console.log(`Total vault value: $${value.totalValueUsd}`);
+  for (const t of value.tokens) {
+    console.log(`  ${t.symbol}: $${t.valueUsd}`);
+  }
+
+  // ── 8. Token helpers ──────────────────────────────────────────────────
+  console.log('\nToken helpers:');
+  console.log(`  USDC address: ${axon.usdcAddress}`);
+  console.log(`  WETH address: ${axon.tokenAddress('WETH')}`);
+  console.log(`  USDC decimals: ${axon.tokenDecimals('USDC')}`);
+
   // ── Done ────────────────────────────────────────────────────────────
   console.log('\n--- Setup Complete ---');
   console.log(`Vault:    ${vaultAddress}`);

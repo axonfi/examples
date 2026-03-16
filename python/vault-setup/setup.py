@@ -65,16 +65,16 @@ def main():
         vault_address,
         bot_account.address,
         BotConfigInput(
-            max_per_tx_amount=100,          # $100 hard cap per transaction
-            max_rebalance_amount=0,         # no rebalance cap
+            max_per_tx_amount=100,  # $100 hard cap per transaction
+            max_rebalance_amount=0,  # no rebalance cap
             spending_limits=[
                 SpendingLimitInput(
-                    amount=1000,            # $1,000 rolling daily limit
-                    max_count=0,            # no transaction count limit
+                    amount=1000,  # $1,000 rolling daily limit
+                    max_count=0,  # no transaction count limit
                     window_seconds=WINDOW_ONE_DAY,
                 ),
             ],
-            ai_trigger_threshold=50,        # AI scan for payments above $50
+            ai_trigger_threshold=50,  # AI scan for payments above $50
             require_ai_verification=False,
         ),
     )
@@ -94,7 +94,7 @@ def main():
     )
 
     result = client.pay(
-        to=owner.address,               # pay back to owner (just a test)
+        to=owner.address,  # pay back to owner (just a test)
         token="ETH",
         amount=0.0001,
         memo="Hello from Axon vault-setup example",
@@ -103,6 +103,19 @@ def main():
     print(f"Payment status: {result.status}")
     if result.tx_hash:
         print(f"Transaction: https://sepolia.basescan.org/tx/{result.tx_hash}")
+
+    # ── 7. Check vault value (USD) ──────────────────────────────────────
+    print("\nChecking vault value...")
+    value = client.get_vault_value()
+    print(f"Total vault value: ${value.total_value_usd}")
+    for t in value.tokens:
+        print(f"  {t.symbol}: ${t.value_usd}")
+
+    # ── 8. Token helpers ─────────────────────────────────────────────────
+    print("\nToken helpers:")
+    print(f"  USDC address: {client.usdc_address}")
+    print(f"  WETH address: {client.token_address('WETH')}")
+    print(f"  USDC decimals: {client.token_decimals('USDC')}")
 
     # ── Done ───────────────────────────────────────────────────────────
     print("\n--- Setup Complete ---")
