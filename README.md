@@ -1,6 +1,6 @@
 # Axon Examples
 
-Working examples showing how AI agents use [Axon](https://axonfi.xyz) — agentic finance with secure vaults — to make on-chain payments without touching private keys or gas.
+Working examples showing how AI agents use [Axon](https://axonfi.xyz) — agentic finance with secure vaults — to make on-chain payments without holding funds or paying gas.
 
 ## What is Axon?
 
